@@ -1,0 +1,66 @@
+plugins {
+    id 'java'
+    id "io.github.krakowski.jextract" version "0.4.1"
+    id 'c'
+    id 'application'
+}
+
+tasks.withType(JavaCompile).each {
+    it.options.compilerArgs.add('--enable-preview')
+}
+
+application {
+    // Define the main class for the application.
+    mainClass = 'com.neusfear.Main'
+    applicationDefaultJvmArgs = ["--enable-preview", "-Djava.library.path=build/libs/nativeLib/shared"]
+}
+
+group = 'com.neusfear'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.9.1')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+jextract {
+    // The header file from which we want to generate the bindings
+    header("${project.projectDir}/test-c-lib/native.h") {
+        // The library name (don't worry about this for now)
+        libraries = [ 'nativeLib' ]
+        // The package under which all source files will be generated
+        targetPackage = 'org.nativelib'
+        // The generated class name
+        className = 'NativeLib'
+    }
+}
+
+model {
+    platforms {
+        x64 {
+            architecture "x86_64"
+        }
+    }
+    components {
+        nativeLib(NativeLibrarySpec) {
+            targetPlatform "x64"
+            sources {
+                c {
+                    source {
+                        srcDir 'test-c-lib' // Path to your C source files
+                    }
+                }
+            }
+        }
+    }
+}
+// Tells gradle to wait for our native library to compile before we can run our java application
+build.dependsOn 'nativeLibSharedLibrary'
+
+test {
+    useJUnitPlatform()
+}
